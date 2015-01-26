@@ -15,12 +15,16 @@ class Course
     @course_content.css('.views-field-phpcode').css('.field-content').last.text
   end
 
-  def to_json
+  def to_json(options)
     {title: title, points: points}.to_json
   end
 
   def self.all
     @@courses.to_json
+  end
+
+  def to_s
+    "#{title} | #{points}"
   end
 
   def self.add_course(course)
@@ -40,13 +44,18 @@ class Course
 
   def self.update
     courses = Nokogiri::HTML(open('http://www.cs.helsinki.fi/courses/'))
-    courses = courses.css('a').map do |link|
+    threads = []
+    courses.css('a').map do |link|
       href = link.attr('href')
       if href.include? '/courses/'
         course = Course.new
-        course.set_content(Nokogiri::HTML(open("http://www.cs.helsinki.fi#{href}")))
-        Course.add_course(course.to_json)
+        threads << Thread.new {
+          course.set_content(Nokogiri::HTML(open("http://www.cs.helsinki.fi#{href}")))
+          puts course
+          Course.add_course(course)
+        }
       end
     end
+    threads.each(&:join)
   end
 end
